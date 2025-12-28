@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from LAB1.LAB1 import *  # want lab 1's DDA algorithm
+from LAB2.DDA import *  # want lab 1's DDA algorithm
 
 def BLA(x1,y1,x2,y2):
     xes, yes = [], []
@@ -43,7 +43,7 @@ if __name__ == "__main__": # if this file is ever imported to another python fil
     
     BLA(0,0, 12,40)
     plt.show() # (a) png
-    plotDDA(0,0, 12,40, "red")
+    plotDDA(0,0, 12,40)
     plt.show() # (b) png
 
 

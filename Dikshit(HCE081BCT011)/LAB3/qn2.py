@@ -1,5 +1,4 @@
-from LAB1.LAB1 import *
-from LAB2.LAB2_qn1 import *
+from qn1 import *
 
 
 #Traingle
