@@ -1,6 +1,6 @@
 # Implement the midpoint circle algorithm
 
-import matplotlib .pyplot as plt
+import matplotlib.pyplot as plt
 
 def plot_circle_points (xc , yc , x, y, xes , yes):
     pts = [
@@ -22,7 +22,7 @@ def midpoint_circle (r, xc=0, yc =0):
     y = r
     p = 1 - r
     xes , yes = [], []
-    plot_circle_points (xc , yc , x, y, xes , yes)
+    plot_circle_points (xc, yc, x, y, xes, yes)
     while x < y:
         x += 1
         if p < 0:
@@ -30,7 +30,7 @@ def midpoint_circle (r, xc=0, yc =0):
         else:
             y -= 1
             p = p + 2 * (x - y) + 1
-        plot_circle_points (xc , yc , x, y, xes , yes)
+        plot_circle_points (xc, yc, x, y, xes, yes)
     return xes , yes
 
 def plot_midpoint_circle (r, xc=0, yc =0):
