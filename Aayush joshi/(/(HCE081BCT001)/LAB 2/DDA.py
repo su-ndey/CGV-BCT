@@ -17,11 +17,8 @@ def drawDDA(x1,y1,x2,y2):
 
     return xes, yes
 
-def plotDDA(x1, y1, x2, y2, color):
+def plotDDA(x1, y1, x2, y2):
     x,y = drawDDA(x1,y1,x2,y2)
-    plt.plot(x, y,marker = "o",color=color)
+    plt.plot(x, y,marker = "o")
     plt.grid(True)
 
-
-if __name__ == "__main__":
-    ...
