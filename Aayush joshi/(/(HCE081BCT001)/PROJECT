@@ -1,0 +1,250 @@
+import pygame, random, math, sys, os
+pygame.init()
+
+# ---------------- SETTINGS ----------------
+WIDTH, HEIGHT = 800, 600
+GRID = 20
+FPS = 60
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Snake Frenzy - Neon Arcade")
+clock = pygame.time.Clock()
+
+font_big = pygame.font.SysFont("Arial", 60, bold=True)
+font_med = pygame.font.SysFont("Arial", 30)
+font_small = pygame.font.SysFont("Arial", 22)
+
+# ---------------- COLORS ----------------
+BLACK = (0,0,0)
+WHITE = (240,240,240)
+RED = (255,60,60)
+GREEN = (0,255,170)
+BLUE = (70,150,255)
+YELLOW = (255,220,50)
+DARK_BLUE = (10,10,50)
+
+# ---------------- HIGH SCORE ----------------
+HIGHSCORE_FILE = "highscore.txt"
+def load_highscore():
+    if os.path.exists(HIGHSCORE_FILE):
+        with open(HIGHSCORE_FILE,"r") as f:
+            try: return int(f.read())
+            except: return 0
+    else: return 0
+def save_highscore(score):
+    with open(HIGHSCORE_FILE,"w") as f: f.write(str(score))
+highscore = load_highscore()
+
+# ---------------- BACKGROUND ----------------
+NUM_STARS = 70
+stars = [[random.randint(0,WIDTH), random.randint(0,HEIGHT), random.uniform(0.2,1)] for _ in range(NUM_STARS)]
+def draw_neon_grid():
+    screen.fill(BLACK)
+    for x in range(0,WIDTH,40): pygame.draw.line(screen,(0,40,60),(x,0),(x,HEIGHT))
+    for y in range(0,HEIGHT,40): pygame.draw.line(screen,(0,40,60),(0,y),(WIDTH,y))
+def update_stars():
+    for star in stars:
+        star[1]+=star[2]
+        if star[1]>HEIGHT:
+            star[0]=random.randint(0,WIDTH)
+            star[1]=0
+            star[2]=random.uniform(0.2,1)
+        pygame.draw.circle(screen,WHITE,(int(star[0]),int(star[1])),2)
+
+# ---------------- PARTICLES ----------------
+particles, sparkles = [], []
+def spawn_particles(x,y):
+    for _ in range(20): particles.append([x,y,random.uniform(-2,2),random.uniform(-2,2),random.randint(15,25)])
+def update_particles():
+    for p in particles[:]:
+        p[0]+=p[2]; p[1]+=p[3]; p[4]-=1
+        pygame.draw.circle(screen,GREEN,(int(p[0]),int(p[1])),2)
+        if p[4]<=0: particles.remove(p)
+def spawn_sparkle(x,y):
+    for _ in range(2): sparkles.append([x+random.randint(-4,4), y+random.randint(-4,4), random.uniform(-0.5,0.5), random.uniform(-1.5,-0.5), random.randint(20,30), random.choice([(0,255,170),(70,150,255)])])
+def update_sparkles():
+    for s in sparkles[:]:
+        s[0]+=s[2]; s[1]+=s[3]; s[4]-=1
+        pygame.draw.circle(screen,s[5]+(int(255*s[4]/30),),(int(s[0]),int(s[1])),2)
+        if s[4]<=0: sparkles.remove(s)
+
+# ---------------- GAME FUNCTIONS ----------------
+def spawn_food(): return (random.randrange(0,WIDTH,GRID), random.randrange(0,HEIGHT,GRID))
+def reset_game():
+    return {"snake":[{"pos":(WIDTH//2,HEIGHT//2),"size":GRID}],
+            "smooth_positions":[(WIDTH//2,HEIGHT//2)],
+            "trail_positions":[],
+            "direction":(GRID,0),
+            "food":spawn_food(),
+            "score":0,
+            "food_count":0,
+            "level":1,
+            "speed":6,
+            "state":"INSTRUCTION",
+            "boss_pos":[200,200],
+            "boss_dir":[4,3]}
+
+game = reset_game()
+
+# ---------------- DRAW FUNCTIONS ----------------
+def draw_snake():
+    head = game["snake"][0]["pos"]
+    total_segments = len(game["snake"])
+    if len(game["smooth_positions"])==0: game["smooth_positions"].append(head)
+    else:
+        last = game["smooth_positions"][0]
+        dx,dy=(head[0]-last[0])*0.5,(head[1]-last[1])*0.5
+        game["smooth_positions"].insert(0,(last[0]+dx,last[1]+dy))
+        if len(game["smooth_positions"])>30: game["smooth_positions"].pop()
+    for i,seg in enumerate(game["snake"]):
+        taper=(total_segments-i)/total_segments
+        base_size=seg["size"] if seg["size"]>0 else GRID
+        size=max(10,int(base_size*taper))
+        ratio=i/total_segments
+        r,g,b=0,int(255-ratio*150),int(170-ratio*120)
+        color=(r,g,b)
+        offset_x=int(4*math.sin(i*0.5 + pygame.time.get_ticks()*0.01))
+        offset_y=int(2*math.cos(i*0.3 + pygame.time.get_ticks()*0.01))
+        glow_surf=pygame.Surface((size+16,size+16),pygame.SRCALPHA)
+        for glow_radius in range(6,0,-2):
+            alpha=int(25*glow_radius)
+            pygame.draw.ellipse(glow_surf,(0,255,170,alpha),(8-glow_radius,8-glow_radius,size+glow_radius*2,size+glow_radius*2))
+        screen.blit(glow_surf,(seg["pos"][0]-8+offset_x,seg["pos"][1]-8+offset_y))
+        if seg["size"]<GRID: pygame.draw.ellipse(screen,WHITE,(seg["pos"][0]-2+offset_x,seg["pos"][1]-2+offset_y,size+4,size+4),2)
+        pygame.draw.ellipse(screen,color,(seg["pos"][0]+offset_x,seg["pos"][1]+offset_y,size,size))
+    head_dir=game["direction"]
+    pygame.draw.ellipse(screen,(0,255,180),(head[0],head[1],GRID,GRID))
+    blink=abs(math.sin(pygame.time.get_ticks()*0.005))>0.95
+    eye_color=BLACK if blink else WHITE
+    eye_offset=4 if head_dir[1]<=0 else 6
+    pygame.draw.circle(screen,eye_color,(head[0]+5,head[1]+eye_offset),3)
+    pygame.draw.circle(screen,eye_color,(head[0]+GRID-5,head[1]+eye_offset),3)
+
+def draw_boss(): pygame.draw.rect(screen,RED,(*game["boss_pos"],40,40),border_radius=6)
+def draw_button(text,x,y,color):
+    rect=pygame.Rect(x,y,230,60)
+    pygame.draw.rect(screen,color,rect,border_radius=12)
+    label=font_small.render(text,True,BLACK)
+    screen.blit(label,(x+60,y+20))
+    return rect
+def draw_instructions():
+    overlay=pygame.Surface((WIDTH,HEIGHT))
+    overlay.fill(DARK_BLUE)
+    screen.blit(overlay,(0,0))
+    update_stars()
+    title=font_big.render("SNAKE FRENZY",True,GREEN)
+    screen.blit(title,(WIDTH//2-240,50))
+    lines=["Controls: Arrow Keys - Move Snake",
+           "Eat food to grow and gain points",
+           "Every 5 foods - Upgrade Level option",
+           "Levels: Speed & difficulty increase",
+           "Level 3+ introduces a moving Boss",
+           "Game Over: Colliding with wall, self, or Boss ends the game",
+           "Restart or Quit using on-screen buttons",
+           "Score displayed top-left, preserved after level upgrades",
+           "High Score saved across sessions"]
+    for i,line in enumerate(lines):
+        screen.blit(font_small.render(line,True,WHITE),(50,150+i*30))
+    return draw_button("Start Game",WIDTH//2-115,HEIGHT-100,GREEN)
+
+# ---------------- MAIN LOOP ----------------
+move_timer=0
+running=True
+countdown_start=None
+
+while running:
+    dt=clock.tick(FPS)
+    move_timer+=dt
+    draw_neon_grid()
+    update_particles()
+    if game["state"]=="INSTRUCTION": start_instr_btn=draw_instructions()
+    else:
+        spawn_sparkle(game["snake"][0]["pos"][0]+GRID//2,game["snake"][0]["pos"][1]+GRID//2)
+        update_sparkles()
+    for event in pygame.event.get():
+        if event.type==pygame.QUIT: running=False
+        if event.type==pygame.MOUSEBUTTONDOWN:
+            mouse=pygame.mouse.get_pos()
+            if game["state"]=="INSTRUCTION" and start_instr_btn.collidepoint(mouse): game["state"]="PLAY"
+            if game["state"]=="GAME_OVER":
+                if restart_btn.collidepoint(mouse): game=reset_game()
+                if quit_btn.collidepoint(mouse): game["state"]="INSTRUCTION"
+            if game["state"]=="LEVEL_UP":
+                if upgrade_btn.collidepoint(mouse):
+                    # ---------------- FIXED: KEEP SNAKE SEGMENTS ----------------
+                    game["level"] += 1
+                    game["speed"] += 2
+                    game["food_count"] = 0
+                    countdown_start = pygame.time.get_ticks()
+        if event.type==pygame.KEYDOWN and game["state"]=="PLAY":
+            if event.key==pygame.K_UP and game["direction"]!=(0,GRID): game["direction"]=(0,-GRID)
+            if event.key==pygame.K_DOWN and game["direction"]!=(0,-GRID): game["direction"]=(0,GRID)
+            if event.key==pygame.K_LEFT and game["direction"]!=(GRID,0): game["direction"]=(-GRID,0)
+            if event.key==pygame.K_RIGHT and game["direction"]!=(-GRID,0): game["direction"]=(GRID,0)
+
+    # ---------------- PLAY ----------------
+    if game["state"]=="PLAY":
+        if move_timer>1000//game["speed"]:
+            move_timer=0
+            head_pos=(game["snake"][0]["pos"][0]+game["direction"][0],game["snake"][0]["pos"][1]+game["direction"][1])
+            if head_pos[0]<0 or head_pos[0]>=WIDTH or head_pos[1]<0 or head_pos[1]>=HEIGHT or any(seg["pos"]==head_pos for seg in game["snake"]):
+                game["state"]="GAME_OVER"
+            if game["level"]>=3:
+                bx,by=game["boss_pos"]
+                if bx<head_pos[0]<bx+40 and by<head_pos[1]<by+40: game["state"]="GAME_OVER"
+            game["snake"].insert(0,{"pos":head_pos,"size":0})
+            if head_pos==game["food"]:
+                game["score"]+=10; game["food_count"]+=1; spawn_particles(head_pos[0],head_pos[1])
+                game["food"]=spawn_food()
+            else: game["snake"].pop()
+            if game["food_count"]>=game["level"]*5: game["state"]="LEVEL_UP"; countdown_start=None
+        if game["level"]>=3:
+            game["boss_pos"][0]+=game["boss_dir"][0]; game["boss_pos"][1]+=game["boss_dir"][1]
+            if game["boss_pos"][0]<=0 or game["boss_pos"][0]>=WIDTH-40: game["boss_dir"][0]*=-1
+            if game["boss_pos"][1]<=0 or game["boss_pos"][1]>=HEIGHT-40: game["boss_dir"][1]*=-1
+
+    # ---------------- FOOD ----------------
+    pulse=4*math.sin(pygame.time.get_ticks()*0.02)
+    aura_surf=pygame.Surface((GRID*3,GRID*3),pygame.SRCALPHA)
+    pygame.draw.circle(aura_surf,(70,150,255,80),(GRID+GRID//2,GRID+GRID//2),int(GRID+pulse))
+    screen.blit(aura_surf,(game["food"][0]-GRID,game["food"][1]-GRID))
+    pygame.draw.circle(screen,BLUE,(game["food"][0]+GRID//2,game["food"][1]+GRID//2),GRID//2)
+
+    if game["level"]>=3: draw_boss()
+    draw_snake()
+
+    # ---------------- NEON HEAD TRAIL ----------------
+    if game["state"]=="PLAY":
+        game["trail_positions"].insert(0, game["snake"][0]["pos"])
+        if len(game["trail_positions"])>15: game["trail_positions"].pop()
+        for i,pos in enumerate(game["trail_positions"]):
+            alpha=max(10,150-i*10)
+            trail_surf=pygame.Surface((GRID,GRID),pygame.SRCALPHA)
+            pygame.draw.ellipse(trail_surf,(0,255,180,alpha),(0,0,GRID,GRID))
+            screen.blit(trail_surf,pos)
+
+    # ---------------- HUD ----------------
+    screen.blit(font_small.render(f"Score: {game['score']}",True,WHITE),(10,10))
+    screen.blit(font_small.render(f"Level: {game['level']}",True,WHITE),(10,35))
+    screen.blit(font_small.render(f"High Score: {highscore}",True,YELLOW),(WIDTH-200,10))
+    if game["score"]>highscore: highscore=game["score"]; save_highscore(highscore)
+
+    # ---------------- LEVEL UP ----------------
+    if game["state"]=="LEVEL_UP":
+        screen.blit(font_big.render("LEVEL COMPLETE!",True,YELLOW),(WIDTH//2-260,HEIGHT//2-120))
+        upgrade_btn=draw_button("Upgrade Level",WIDTH//2-115,HEIGHT//2-30,GREEN)
+        if countdown_start:
+            elapsed=(pygame.time.get_ticks()-countdown_start)//1000
+            countdown_num=3-elapsed
+            if countdown_num>0: screen.blit(font_big.render(str(countdown_num),True,WHITE),(WIDTH//2-20,HEIGHT//2+60))
+            else: game["state"]="PLAY"; countdown_start=None
+
+    # ---------------- GAME OVER ----------------
+    if game["state"]=="GAME_OVER":
+        screen.blit(font_big.render("GAME OVER",True,RED),(WIDTH//2-180,HEIGHT//2-120))
+        restart_btn=draw_button("Restart",WIDTH//2-115,HEIGHT//2-30,BLUE)
+        quit_btn=draw_button("Quit",WIDTH//2-115,HEIGHT//2+40,RED)
+
+    pygame.display.flip()
+
+pygame.quit()
+sys.exit()

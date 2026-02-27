@@ -2,15 +2,15 @@ from qn1 import *
 
 
 #Traingle
-BLA(0,0, 20,10)
-BLA(20,10, 40,0)
-BLA(40,0, 0,0)
+plotBLA(0,0, 20,10)
+plotBLA(20,10, 40,0)
+plotBLA(40,0, 0,0)
 plt.show()
 
 #square 
-BLA(0,0, 0,10)
-BLA(0,10, 10,10)
-BLA(10,10, 10,0)
-BLA(10,0, 0,0)
+plotBLA(0,0, 0,10)
+plotBLA(0,10, 10,10)
+plotBLA(10,10, 10,0)
+plotBLA(10,0, 0,0)
 plt.show()
 
